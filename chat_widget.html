@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سفير - مساعد جمعية سفراء الكتاب</title>
+    <style>
+        /* ===== أنماط الـ Widget ===== */
+        #chatbot-widget-container * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            direction: rtl;
+        }
+
+        /* زر الفقاعة الرئيسي */
+        #chatbot-bubble-btn {
+            position: fixed;
+            bottom: 25px;
+            left: 25px;
+            width: 62px;
+            height: 62px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1a5276, #2e86c1);
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(26, 82, 118, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        #chatbot-bubble-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 28px rgba(26, 82, 118, 0.7);
+        }
+
+        #chatbot-bubble-btn svg {
+            width: 30px;
+            height: 30px;
+            fill: white;
+        }
+
+        /* نقطة الإشعار */
+        #chatbot-notification-dot {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 14px;
+            height: 14px;
+            background: #e74c3c;
+            border-radius: 50%;
+            border: 2px solid white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* نافذة الدردشة */
+        #chatbot-window {
+            position: fixed;
+            bottom: 100px;
+            left: 25px;
+            width: 360px;
+            height: 520px;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            display: none;
+            flex-direction: column;
+            z-index: 9998;
+            overflow: hidden;
+            border: 1px solid rgba(26, 82, 118, 0.2);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #chatbot-window.open {
+            display: flex;
+        }
+
+        /* رأس النافذة */
+        #chatbot-header {
+            background: linear-gradient(135deg, #1a5276, #2e86c1);
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        #chatbot-header-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #chatbot-avatar {
+            width: 42px;
+            height: 42px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        #chatbot-header-text h4 {
+            color: white;
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        #chatbot-header-text p {
+            color: rgba(255,255,255,0.8);
+            margin: 2px 0 0 0;
+            font-size: 12px;
+        }
+
+        #chatbot-status-dot {
+            width: 8px;
+            height: 8px;
+            background: #2ecc71;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        #chatbot-close-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+
+        #chatbot-close-btn:hover {
+            background: rgba(255,255,255,0.35);
+        }
+
+        /* منطقة الرسائل */
+        #chatbot-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #chatbot-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #chatbot-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #chatbot-messages::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+
+        /* الرسائل */
+        .chatbot-msg {
+            max-width: 82%;
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
+        .chatbot-msg.user {
+            background: linear-gradient(135deg, #1a5276, #2e86c1);
+            color: white;
+            align-self: flex-end;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chatbot-msg.bot {
+            background: white;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        /* رسالة الترحيب */
+        .chatbot-welcome {
+            text-align: center;
+            padding: 20px 10px;
+        }
+
+        .chatbot-welcome .welcome-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        .chatbot-welcome h5 {
+            color: #1a5276;
+            margin: 0 0 6px 0;
+            font-size: 15px;
+        }
+
+        .chatbot-welcome p {
+            color: #666;
+            font-size: 13px;
+            margin: 0 0 14px 0;
+        }
+
+        /* الأسئلة المقترحة */
+        .chatbot-suggestions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .chatbot-suggestion-btn {
+            background: white;
+            border: 1px solid #d0e8f5;
+            color: #1a5276;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12.5px;
+            text-align: right;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .chatbot-suggestion-btn:hover {
+            background: #eaf4fb;
+            border-color: #2e86c1;
+        }
+
+        /* مؤشر الكتابة */
+        .chatbot-typing {
+            display: flex;
+            gap: 4px;
+            padding: 12px 14px;
+            background: white;
+            border-radius: 16px;
+            border-bottom-right-radius: 4px;
+            align-self: flex-start;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        .chatbot-typing span {
+            width: 7px;
+            height: 7px;
+            background: #2e86c1;
+            border-radius: 50%;
+            animation: typing-bounce 1.4s infinite ease-in-out;
+        }
+
+        .chatbot-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .chatbot-typing span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing-bounce {
+            0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
+            40% { transform: scale(1.1); opacity: 1; }
+        }
+
+        /* منطقة الإدخال */
+        #chatbot-input-area {
+            padding: 12px 14px;
+            background: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #chatbot-input {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 22px;
+            padding: 9px 14px;
+            font-size: 14px;
+            outline: none;
+            resize: none;
+            background: #f8f9fa;
+            color: #333;
+            direction: rtl;
+            transition: border-color 0.2s;
+        }
+
+        #chatbot-input:focus {
+            border-color: #2e86c1;
+            background: white;
+        }
+
+        #chatbot-send-btn {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #1a5276, #2e86c1);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #chatbot-send-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 3px 12px rgba(46, 134, 193, 0.5);
+        }
+
+        #chatbot-send-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: white;
+            transform: scaleX(-1);
+        }
+
+        /* تذييل صغير */
+        #chatbot-footer {
+            text-align: center;
+            padding: 5px;
+            font-size: 10px;
+            color: #aaa;
+            background: white;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        /* تجاوب مع الشاشات الصغيرة */
+        @media (max-width: 400px) {
+            #chatbot-window {
+                width: calc(100vw - 20px);
+                left: 10px;
+                right: 10px;
+                bottom: 90px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- =====================================================
+     هذا هو الكود الكامل للـ Chat Widget
+     انسخ كل شيء من هنا حتى نهاية الصفحة والصقه في موقعك
+     ===================================================== -->
+
+<div id="chatbot-widget-container">
+
+    <!-- زر الفقاعة -->
+    <button id="chatbot-bubble-btn" onclick="toggleChatbot()" title="تحدث مع سفير - مساعد الجمعية">
+        <div id="chatbot-notification-dot"></div>
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+        </svg>
+    </button>
+
+    <!-- نافذة الدردشة -->
+    <div id="chatbot-window">
+
+        <!-- الرأس -->
+        <div id="chatbot-header">
+            <div id="chatbot-header-info">
+                <div id="chatbot-avatar">📚</div>
+                <div id="chatbot-header-text">
+                    <h4>🤖 سفير | جمعية سفراء الكتاب</h4>
+                    <p><span id="chatbot-status-dot"></span> متاح الآن للمساعدة</p>
+                </div>
+            </div>
+            <button id="chatbot-close-btn" onclick="toggleChatbot()">✕</button>
+        </div>
+
+        <!-- الرسائل -->
+        <div id="chatbot-messages">
+            <div class="chatbot-welcome">
+                <div class="welcome-icon">📚</div>
+                <h5>أهلاً! أنا سفير👋 مساعدك الذكي من جمعية سفراء الكتاب</h5>
+                <p>يسعدني مساعدتك في أي استفسار حول الجمعية وأنشطتها.</p>
+                <div class="chatbot-suggestions">
+                    <button class="chatbot-suggestion-btn" onclick="sendSuggestion(this.textContent)">📖 ما هي أنشطة الجمعية؟</button>
+                    <button class="chatbot-suggestion-btn" onclick="sendSuggestion(this.textContent)">🤝 كيف أنضم للجمعية؟</button>
+                    <button class="chatbot-suggestion-btn" onclick="sendSuggestion(this.textContent)">📅 ما هي الفعاليات القادمة؟</button>
+                    <button class="chatbot-suggestion-btn" onclick="sendSuggestion(this.textContent)">📞 كيف أتواصل مع الجمعية؟</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- منطقة الإدخال -->
+        <div id="chatbot-input-area">
+            <button id="chatbot-send-btn" onclick="sendMessage()">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+            </button>
+            <input
+                type="text"
+                id="chatbot-input"
+                placeholder="اكتب سؤالك هنا..."
+                onkeypress="handleKeyPress(event)"
+                autocomplete="off"
+            />
+        </div>
+
+        <!-- التذييل -->
+        <div id="chatbot-footer">مدعوم بالذكاء الاصطناعي</div>
+    </div>
+</div>
+
+<script>
+// =====================================================
+//  إعدادات الـ Widget - قم بتعديل هذه القيم فقط
+// =====================================================
+const CHATBOT_CONFIG = {
+    // ضع هنا عنوان خادم الـ API الخاص بك
+    // مثال: "http://localhost:5000/api/chat"
+    // أو عنوان الاستضافة: "https://your-server.com/api/chat"
+    apiUrl: "http://localhost:5000/api/chat",
+
+    // ضع هنا مفتاح OpenAI API الخاص بك
+    apiKey: "YOUR_OPENAI_API_KEY_HERE",
+
+    // النموذج المستخدم
+    model: "gpt-4o-mini",
+};
+// =====================================================
+
+let sessionId = "session_" + Math.random().toString(36).substr(2, 9);
+let isOpen = false;
+let isTyping = false;
+
+function toggleChatbot() {
+    isOpen = !isOpen;
+    const win = document.getElementById("chatbot-window");
+    const dot = document.getElementById("chatbot-notification-dot");
+    
+    if (isOpen) {
+        win.classList.add("open");
+        dot.style.display = "none";
+        document.getElementById("chatbot-input").focus();
+    } else {
+        win.classList.remove("open");
+    }
+}
+
+function handleKeyPress(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+}
+
+function sendSuggestion(text) {
+    document.getElementById("chatbot-input").value = text;
+    sendMessage();
+}
+
+function addMessage(text, role) {
+    const messagesDiv = document.getElementById("chatbot-messages");
+    
+    // إزالة رسالة الترحيب عند أول رسالة
+    const welcome = messagesDiv.querySelector(".chatbot-welcome");
+    if (welcome) welcome.remove();
+
+    const msgDiv = document.createElement("div");
+    msgDiv.className = "chatbot-msg " + role;
+    msgDiv.textContent = text;
+    messagesDiv.appendChild(msgDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    return msgDiv;
+}
+
+function showTyping() {
+    const messagesDiv = document.getElementById("chatbot-messages");
+    const typingDiv = document.createElement("div");
+    typingDiv.className = "chatbot-typing";
+    typingDiv.id = "chatbot-typing-indicator";
+    typingDiv.innerHTML = "<span></span><span></span><span></span>";
+    messagesDiv.appendChild(typingDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function hideTyping() {
+    const typing = document.getElementById("chatbot-typing-indicator");
+    if (typing) typing.remove();
+}
+
+async function sendMessage() {
+    const input = document.getElementById("chatbot-input");
+    const message = input.value.trim();
+    
+    if (!message || isTyping) return;
+    
+    input.value = "";
+    isTyping = true;
+
+    addMessage(message, "user");
+    showTyping();
+
+    try {
+        const response = await fetch(CHATBOT_CONFIG.apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                message: message,
+                session_id: sessionId,
+                api_key: CHATBOT_CONFIG.apiKey,
+                model: CHATBOT_CONFIG.model,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error("فشل الاتصال بالخادم");
+        }
+
+        hideTyping();
+
+        const messagesDiv = document.getElementById("chatbot-messages");
+        const botMsgDiv = document.createElement("div");
+        botMsgDiv.className = "chatbot-msg bot";
+        botMsgDiv.textContent = "";
+        messagesDiv.appendChild(botMsgDiv);
+
+        // قراءة الـ stream
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = "";
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split("\n");
+
+            for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                    const data = line.slice(6);
+                    if (data === "[DONE]") break;
+                    fullText += data;
+                    botMsgDiv.textContent = fullText;
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
+            }
+        }
+
+    } catch (error) {
+        hideTyping();
+        addMessage("عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.", "bot");
+    }
+
+    isTyping = false;
+}
+</script>
+
+<!-- =====================================================
+     نهاية كود الـ Chat Widget
+     ===================================================== -->
+
+</body>
+</html>
